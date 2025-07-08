@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <title>Игра 100 к 1</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="questions.json"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96c93d);
+            background-size: 400%;
+            animation: colorShift 10s ease infinite;
+            color: var(--tg-theme-text-color, #000000);
+        }
+        @keyframes colorShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        #game-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: var(--tg-theme-bg-color, #ffffff);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #question {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        #timer {
+            font-size: 18px;
+            color: #e74c3c;
+            margin-bottom: 20px;
+        }
+        #answers {
+            display: none;
+            margin-top: 20px;
+        }
+        .answer {
+            font-size: 18px;
+            padding: 10px;
+            margin: 5px;
+            background: var(--tg-theme-secondary-bg-color, #ecf0f1);
+            border-radius: 5px;
+        }
+        #next-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: var(--tg-theme-button-color, #3498db);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #next-button:hover {
+            background-color: var(--tg-theme-button-color, #2980b9);
+            filter: brightness(90%);
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="question"></div>
+        <div id="timer"></div>
+        <div id="answers"></div>
+        <button id="next-button" style="display: none;">Следующий вопрос</button>
+    </div>
+
+    <script>
+        // Инициализация Telegram Web App
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        // Функция для загрузки вопросов из JSON
+        async function loadQuestions() {
+            try {
+                const response = await fetch('questions.json');
+                return await response.json();
+            } catch (error) {
+                console.error('Ошибка загрузки вопросов:', error);
+                return [];
+            }
+        }
+
+        let currentQuestionIndex = 0;
+        let selectedQuestions = [];
+
+        // Функция для выбора 5 случайных вопросов
+        function getRandomQuestions(questions) {
+            const shuffled = questions.sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, 5);
+        }
+
+        // Функция для отображения вопроса
+        function showQuestion() {
+            const question = selectedQuestions[currentQuestionIndex];
+            document.getElementById('question').textContent = question.question;
+            document.getElementById('timer').textContent = 'Осталось: 5 секунд';
+            document.getElementById('answers').style.display = 'none';
+            document.getElementById('next-button').style.display = 'none';
+            startTimer();
+        }
+
+        // Функция для запуска таймера
+        function startTimer() {
+            let timeLeft = 5;
+            const timerElement = document.getElementById('timer');
+            const interval = setInterval(() => {
+                timeLeft--;
+                timerElement.textContent = `Осталось: ${timeLeft} секунд`;
+                if (timeLeft <= 0) {
+                    clearInterval(interval);
+                    showAnswers();
+                }
+            }, 1000);
+        }
+
+        // Функция для отображения ответов
+        function showAnswers() {
+            const question = selectedQuestions[currentQuestionIndex];
+            const answersContainer = document.getElementById('answers');
+            answersContainer.innerHTML = '';
+            question.answers.forEach(answer => {
+                const answerElement = document.createElement('div');
+                answerElement.className = 'answer';
+                answerElement.textContent = answer;
+                answersContainer.appendChild(answerElement);
+            });
+            answersContainer.style.display = 'block';
+            document.getElementById('timer').textContent = 'Время вышло!';
+            document.getElementById('next-button').style.display = 'block';
+        }
+
+        // Функция для перехода к следующему вопросу
+        function nextQuestion() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < selectedQuestions.length) {
+                showQuestion();
+            } else {
+                document.getElementById('game-container').innerHTML = '<h2>Игра окончена!</h2><p>Подсчитайте свои очки.</p>';
+                tg.MainButton.setText('Закрыть').show().onClick(() => tg.close());
+            }
+        }
+
+        // Инициализация игры
+        async function startGame() {
+            const questions = await loadQuestions();
+            if (questions.length === 0) {
+                document.getElementById('game-container').innerHTML = '<h2>Ошибка!</h2><p>Не удалось загрузить вопросы.</p>';
+                return;
+            }
+            selectedQuestions = getRandomQuestions(questions);
+            currentQuestionIndex = 0;
+            showQuestion();
+        }
+
+        // Обработчик кнопки "Следующий вопрос"
+        document.getElementById('next-button').addEventListener('click', nextQuestion);
+
+        // Запуск игры
+        startGame();
+    </script>
+</body>
+</html>
